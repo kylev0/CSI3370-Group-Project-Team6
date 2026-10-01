@@ -8,7 +8,14 @@
  * console but don't actually play any music yet.
  */
 package musicplayer;
-
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -143,35 +150,110 @@ public class MusicPlayerUI {
         volumeRow.setAlignment(Pos.CENTER);
         return volumeRow;
     }
-
+    private File currentPlaylist;
+    public ArrayList<File> songs = new ArrayList<>();
+    private boolean isMusicFile(File file) {
+    String name = file.getName().toLowerCase();
+    // Finds file names with extensions specified here.
+    return name.endsWith(".mp3") 
+        || name.endsWith(".wav")
+        || name.endsWith(".ogg");
+    }
+    // Updates the playlist song list
+    private void updateSongList(ListView<String> songList) {
+        songList.getItems().clear();
+        for (File song : songs) {
+            songList.getItems().add(song.getName());
+        }
+    }
     // right side: the playlist and the add/remove buttons
     private VBox createPlaylist() {
         Label playlistTitle = new Label("Playlist");
         playlistTitle.setStyle("-fx-font-size: 19px; -fx-font-weight: bold; -fx-text-fill: white;");
 
         // ListView shows a list you can click on and scroll through
-        // these are just sample songs for testing
+        // You can add a playlist folder and song by clicking "Select Playlist" and choosing the folder you want to use. 
         ListView<String> songList = new ListView<>();
-        songList.getItems().addAll(
-                "Song 1  -  Artist 1",
-                "Song 2  -  Artist 2",
-                "Song 3  -  Artist 3",
-                "Song 4  -  Artist 4",
-                "Song 5  -  Artist 5"
-        );
         songList.setPrefWidth(260);
         songList.setPrefHeight(300);
+        Label emptyMessage = new Label("No playlist selected");
+        emptyMessage.setStyle("-fx-text-fill: #000000;");
+        songList.setPlaceholder(emptyMessage);
 
         // let the list get taller if the window gets taller
         VBox.setVgrow(songList, Priority.ALWAYS);
+        // Adds chosen song to playlist using Java's file explorer.
 
-        // TODO: these don't actually add or remove songs yet
+       
         Button addButton = makeButton("Add Song", "Add Song button clicked");
+        addButton.setOnAction(e -> {
+            // If there is no playlist for a song to be added to, an error message shows up.
+            if (currentPlaylist == null) {
+                JOptionPane.showMessageDialog(null, "No playlist selected, please select one.");
+                return;
+            }
+            JFileChooser songFileChooser = new JFileChooser();
+            FileNameExtensionFilter extentsionfilter = new FileNameExtensionFilter("Song Files", "mp3", "wav", "ogg");
+            songFileChooser.setFileFilter(extentsionfilter);
+            int result = songFileChooser.showOpenDialog(null);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File selectedSongFile = songFileChooser.getSelectedFile();
+                File songFileDestination = new File(currentPlaylist, selectedSongFile.getName());
+                try {
+                    Files.copy(selectedSongFile.toPath(), songFileDestination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    songs.add(songFileDestination);
+                    updateSongList(songList);
+                }   
+                catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+        // Removes/deletes song from the chosen playlist folder (without warning/confirmation prompt).
         Button removeButton = makeButton("Remove Song", "Remove Song button clicked");
-
+        removeButton.setOnAction(e -> {
+            int selectedSongFile = songList.getSelectionModel().getSelectedIndex();
+            // If there is no song selected from the playlist, an error prompt shows on the screen.
+            if (selectedSongFile == -1) {
+                JOptionPane.showMessageDialog(null, "No song selected, please select one.");
+                return;
+            }
+            File removedSong = songs.get(selectedSongFile);
+            try {
+                Files.delete(removedSong.toPath());
+                songs.remove(selectedSongFile);
+                updateSongList(songList);
+            }
+            catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        });
+        // Lets user change the chosen playlist using Java's file explorer.
+        Button changePlaylistButton = makeButton("Select Playlist", "Select Playlist button clicked");
+        changePlaylistButton.setOnAction(e -> {
+            JFileChooser playlistFolderChooser = new JFileChooser();
+            playlistFolderChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            int result = playlistFolderChooser.showOpenDialog(null);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                currentPlaylist = playlistFolderChooser.getSelectedFile();
+                songs.clear();
+                File[] files = currentPlaylist.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (file.isFile() && isMusicFile(file)) {
+                            songs.add(file);
+                        }
+                    }
+                }
+                updateSongList(songList);
+            }   
+        });
+        
+        HBox playlistHeader = new HBox(10, playlistTitle, changePlaylistButton);
+        playlistHeader.setAlignment(Pos.CENTER_LEFT);
         HBox playlistButtons = new HBox(8, addButton, removeButton);
 
-        VBox playlist = new VBox(12, playlistTitle, songList, playlistButtons);
+        VBox playlist = new VBox(12, playlistHeader, songList, playlistButtons);
         playlist.setPrefWidth(280);
         playlist.setPadding(new Insets(16));
         playlist.setStyle("-fx-background-color: #1f2937; -fx-background-radius: 14;");
