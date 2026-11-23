@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+    <!-- NetBeans was using its generic Java launcher, which omits JavaFX's runtime setup. -->
+    <action>
+        <actionName>run</actionName>
+        <goals>
+            <goal>javafx:run</goal>
+        </goals>
+    </action>
+    <!-- Use the same JavaFX-aware launcher when Run File is chosen for Main.java. -->
+    <action>
+        <actionName>run.single</actionName>
+        <goals>
+            <goal>javafx:run</goal>
+        </goals>
+    </action>
+</actions>
